@@ -1,0 +1,286 @@
+Main.kt
+===================
+package com.example.exam
+
+import android.content.ContentValues
+import android.content.DialogInterface
+import android.database.Cursor
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ListView
+import android.widget.SearchView
+import android.widget.SimpleCursorAdapter
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+
+class MainActivity : AppCompatActivity() {
+
+    lateinit var ed_name: EditText
+    lateinit var ed_sem:EditText
+    lateinit var btn_insert:Button
+    lateinit var btn_update:Button
+    lateinit var btn_delete:Button
+    lateinit var btn_clear:Button
+    lateinit var btn_all_record: Button
+    lateinit var search: SearchView
+    lateinit var lv: ListView
+    lateinit var rs: Cursor
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        ed_name=findViewById(R.id.ed_name)
+        ed_sem=findViewById(R.id.ed_sem)
+        btn_insert=findViewById(R.id.btn_insert)
+        btn_update=findViewById(R.id.btn_update)
+        btn_delete=findViewById(R.id.btn_delete)
+        btn_clear=findViewById(R.id.btn_clear)
+        btn_all_record=findViewById(R.id.btn_all_record)
+        search=findViewById(R.id.search)
+        lv=findViewById(R.id.lv)
+
+        var helper=MyDbHelper(applicationContext)
+        var db=helper.writableDatabase
+        Toast.makeText(applicationContext,"Database and Table Created",Toast.LENGTH_LONG).show()
+        rs=db.rawQuery("SELECT SID _id,SNAME,SEM FROM STUDENT",null)
+
+        if(rs.moveToFirst()){
+            ed_name.setText(rs.getString(1))
+            ed_sem.setText(rs.getString(2))
+        }
+//------------------------------insert
+        btn_insert.setOnClickListener {
+            var cv = ContentValues()
+            cv.put("SNAME",ed_name.text.toString())
+            cv.put("SEM",ed_sem.text.toString())
+            db.insert("STUDENT",null,cv)
+            rs = db.rawQuery("SELECT SID _id, SNAME, SEM FROM STUDENT",null)
+            showMessage("Record Inserted Successfully...")
+            clear()
+        }
+
+//------------------------------update
+        btn_update.setOnClickListener {
+            var cv = ContentValues()
+            cv.put("SNAME",ed_name.text.toString())
+            cv.put("SEM",ed_sem.text.toString())
+            db.update("STUDENT",cv,"SID = ?", arrayOf(rs.getString(0)))
+            rs = db.rawQuery("SELECT SID _id, SNAME, SEM FROM STUDENT",null)
+            showMessage("Record Updated Successfully...")
+            clear()
+        }
+//------------------------------delete
+        btn_delete.setOnClickListener {
+            db.delete("STUDENT","SID = ?", arrayOf(rs.getString(0)))
+            rs = db.rawQuery("SELECT SID _id, SNAME, SEM FROM STUDENT",null)
+            showMessage("Record Deleted Successfully...")
+            clear()
+        }
+
+
+
+//----------------------------showall
+
+        btn_all_record.setOnClickListener {
+
+            var adapter =SimpleCursorAdapter(applicationContext,R.layout.my_layout,rs,
+                arrayOf("SNAME","SEM"),
+                intArrayOf(R.id.textView1,R.id.textView2))
+            lv.adapter= adapter
+
+            search.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(p0: String?): Boolean {
+                    return false
+                }
+
+                override fun onQueryTextChange(p0: String?): Boolean {
+                    rs=db.rawQuery("SELECT SID _id,SNAME,SEM FROM STUDENT WHERE SNAME LIKE '%${p0}%'",null)
+                    adapter.changeCursor(rs)
+                    return false
+                }
+            })
+        }
+        //clear button
+        btn_clear.setOnClickListener {
+            clear()
+        }
+    }
+
+    private fun clear() {
+        ed_name.setText("")
+        ed_sem.setText("")
+    }
+    private fun showMessage(s: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Success!")
+            .setMessage(s)
+            .setPositiveButton("ok", DialogInterface.OnClickListener { dialogInterface, i ->
+                if (rs.moveToFirst()){
+                    ed_name.setText(rs.getString(1))
+                    ed_sem.setText(rs.getString(2))
+                }else{
+                    Toast.makeText(applicationContext,"Data not found",Toast.LENGTH_SHORT).show()
+                }
+            }).show()
+    }
+
+}
+
+-----------------------------------------------------------------------------------
+MydbHelper.kt
+===============
+package com.example.exam
+
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
+
+class MyDbHelper(context: Context):SQLiteOpenHelper(context,"DB",null,1) {
+    override fun onCreate(p0: SQLiteDatabase?) {
+
+        p0?.execSQL("CREATE TABLE STUDENT (SID INTEGER PRIMARY KEY AUTOINCREMENT,NAME TEXT,SEMESTER INTEGER)")
+
+    }
+
+    override fun onUpgrade(p0: SQLiteDatabase?, p1: Int, p2: Int) {
+
+    }
+}
+
+--------------------------------------------------------------------------------------
+activity_main.xml
+====================
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <EditText
+        android:id="@+id/ed_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter sname"
+        android:textSize="25dp"
+        android:layout_marginBottom="5dp"
+
+        />
+
+    <EditText
+        android:id="@+id/ed_sem"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter sem"
+        android:textSize="25dp"
+        android:layout_marginBottom="5dp"
+        />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        tools:context=".MainActivity">
+
+        <Button
+            android:id="@+id/btn_insert"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Insert"
+            android:layout_marginEnd="7dp"
+            android:layout_marginStart="10dp"
+            />
+        <Button
+            android:id="@+id/btn_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Update"
+            android:layout_marginEnd="7dp"
+            />
+        <Button
+            android:id="@+id/btn_delete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Delete"
+            android:layout_marginEnd="7dp"
+            />
+        <Button
+            android:id="@+id/btn_clear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="clear"
+            android:layout_marginEnd="7dp"
+            />
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        tools:context=".MainActivity">
+        <Button
+            android:id="@+id/btn_all_record"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Show All Records"
+            android:layout_marginTop="10dp"
+            />
+        <SearchView
+            android:id="@+id/search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            />
+        <ListView
+            android:id="@+id/lv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+</LinearLayout>
+
+-------------------------------------------------------------------------------
+my_layout.xml
+====================
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    >
+
+
+    <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="20dp"
+        android:textColor="@color/black"
+        android:background="#91A8BF"
+        android:layout_margin="5dp"
+        android:gravity="center"
+        android:padding="5dp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="20dp"
+        android:gravity="center"
+        android:layout_margin="5dp"
+        android:textColor="@color/black"
+        android:background="#91A8BF"
+        android:padding="5dp"
+        android:text="" />
+</LinearLayout>
